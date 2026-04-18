@@ -51,7 +51,3 @@ func _getStartPtr(b []byte) unsafe.Pointer {
 	}
 	return unsafe.Pointer(&_zero)
 }
-
-func _getPtr(b []byte) uintptr {
-	return uintptr(_getStartPtr(b))
-}
