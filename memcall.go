@@ -1,7 +1,6 @@
 package memcall
 
 import (
-	"runtime"
 	"unsafe"
 )
 
@@ -33,12 +32,13 @@ func ReadWrite() MemoryProtectionFlag {
 // ErrInvalidFlag indicates that a given memory protection flag is undefined.
 const ErrInvalidFlag = "<memcall> memory protection flag is undefined"
 
-// Wipes a given byte slice.
-func wipe(buf []byte) {
+// wipe zeroes a byte slice. Declared as a variable so the compiler cannot
+// inline the call or prove the stores are dead, preventing the zeroing
+// loop from being optimised away.
+var wipe = func(buf []byte) {
 	for i := range buf {
 		buf[i] = 0
 	}
-	runtime.KeepAlive(buf)
 }
 
 // Placeholder variable for when we need a valid pointer to zero bytes.
