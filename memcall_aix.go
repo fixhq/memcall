@@ -59,6 +59,9 @@ func Free(b []byte) error {
 		return err
 	}
 
+	// Unlock the memory to release mlock accounting.
+	_ = Unlock(b)
+
 	// Wipe the memory region in case of remnant data.
 	wipe(b)
 
