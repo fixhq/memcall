@@ -31,7 +31,7 @@ func Unlock(b []byte) error {
 // Alloc allocates a byte slice of length n and returns it.
 func Alloc(n int) ([]byte, error) {
 	// Allocate the memory.
-	ptr, err := windows.VirtualAlloc(_zero, uintptr(n), 0x1000|0x2000, 0x4)
+	ptr, err := windows.VirtualAlloc(_zero, uintptr(n), windows.MEM_COMMIT|windows.MEM_RESERVE, windows.PAGE_READWRITE)
 	if err != nil {
 		return nil, fmt.Errorf("<memcall> could not allocate [Err: %s]", err)
 	}
@@ -57,7 +57,7 @@ func Free(b []byte) error {
 	wipe(b)
 
 	// Free the memory back to the kernel.
-	if err := windows.VirtualFree(uintptr(_getStartPtr(b)), uintptr(0), 0x8000); err != nil {
+	if err := windows.VirtualFree(uintptr(_getStartPtr(b)), uintptr(0), windows.MEM_RELEASE); err != nil {
 		return fmt.Errorf("<memcall> could not deallocate %p [Err: %s]", _getStartPtr(b), err)
 	}
 
@@ -66,19 +66,19 @@ func Free(b []byte) error {
 
 // Protect modifies the memory protection flags for a specified byte slice.
 func Protect(b []byte, mpf MemoryProtectionFlag) error {
-	var prot int
+	var prot uint32
 	if mpf.flag == ReadWrite().flag {
-		prot = 0x4 // PAGE_READWRITE
+		prot = windows.PAGE_READWRITE
 	} else if mpf.flag == ReadOnly().flag {
-		prot = 0x2 // PAGE_READ
+		prot = windows.PAGE_READONLY
 	} else if mpf.flag == NoAccess().flag {
-		prot = 0x1 // PAGE_NOACCESS
+		prot = windows.PAGE_NOACCESS
 	} else {
 		return errors.New(ErrInvalidFlag)
 	}
 
 	var oldProtect uint32
-	if err := windows.VirtualProtect(uintptr(_getStartPtr(b)), uintptr(len(b)), uint32(prot), &oldProtect); err != nil {
+	if err := windows.VirtualProtect(uintptr(_getStartPtr(b)), uintptr(len(b)), prot, &oldProtect); err != nil {
 		return fmt.Errorf("<memcall> could not set %d on %p [Err: %s]", prot, _getStartPtr(b), err)
 	}
 
