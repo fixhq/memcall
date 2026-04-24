@@ -54,10 +54,12 @@ func TestProtect(t *testing.T) {
 	if err := Protect(buffer, NoAccess()); err != nil {
 		t.Error(err)
 	}
-	if err := Protect(buffer, MemoryProtectionFlag{4}); err.Error() != ErrInvalidFlag {
+	if err := Protect(buffer, MemoryProtectionFlag{4}); err == nil || err.Error() != ErrInvalidFlag {
 		t.Error("expected error")
 	}
-	Free(buffer)
+	if err := Free(buffer); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestProtFlags(t *testing.T) {

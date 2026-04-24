@@ -47,7 +47,7 @@ var _zero uintptr
 // Auxiliary functions.
 func _getStartPtr(b []byte) unsafe.Pointer {
 	if len(b) > 0 {
-		return unsafe.Pointer(&b[0])
+		return unsafe.Pointer(&b[0]) // #nosec G103 -- pointer passed to OS memory syscalls
 	}
-	return unsafe.Pointer(&_zero)
+	return unsafe.Pointer(&_zero) // #nosec G103 -- valid pointer to zero-length region for syscalls
 }
