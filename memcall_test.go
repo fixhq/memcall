@@ -74,6 +74,27 @@ func TestProtFlags(t *testing.T) {
 	}
 }
 
+func TestFreeEmpty(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		buf  []byte
+	}{
+		{"nil", nil},
+		{"empty", []byte{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("Free(%s) panicked: %v", tc.name, r)
+				}
+			}()
+			if err := Free(tc.buf); err == nil {
+				t.Errorf("Free(%s) returned nil, expected an error", tc.name)
+			}
+		})
+	}
+}
+
 func TestGetStartPtr(t *testing.T) {
 	str := fmt.Sprintf("<memcall> could not deallocate %p", _getStartPtr(nil))
 	if !strings.HasPrefix(str, "<memcall> could not deallocate") {

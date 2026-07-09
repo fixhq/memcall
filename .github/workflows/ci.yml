@@ -63,3 +63,37 @@ jobs:
           $env:CGO_ENABLED=1; go test -race -v ./...
       - name: Bench
         run: go test -run=XXX -bench=. ./...
+
+  # Cross-compile the platform implementations that have no native CI runner,
+  # so a build break on a BSD/Solaris/AIX target is caught
+  # DragonFly is intentionally excluded for now.
+  cross-compile:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: freebsd
+            goarch: amd64
+          - goos: netbsd
+            goarch: amd64
+          - goos: openbsd
+            goarch: amd64
+          - goos: solaris
+            goarch: amd64
+          - goos: aix
+            goarch: ppc64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+      - name: Cross-compile (${{ matrix.goos }}/${{ matrix.goarch }})
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go version
+          go build -v ./...
+          go vet ./...
