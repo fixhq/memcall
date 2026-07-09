@@ -6,19 +6,27 @@ on:
   pull_request:
     branches: [master]
 
+# Least privilege: CI only needs to read the repository.
+permissions:
+  contents: read
+
+# Fail loudly if a build would need to modify go.mod/go.sum, so CI always
+# tests the committed dependency graph.
+env:
+  GOFLAGS: -mod=readonly
+
 jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: "stable"
       - name: Build
         run: |
           go version
-          go get ./...
           go build -race -v ./...
       - name: Test
         run: go test -race -v ./...
@@ -28,15 +36,14 @@ jobs:
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: "stable"
       - name: Build
         run: |
           go version
-          go get ./...
           go build -race -v ./...
       - name: Test
         run: go test -race -v ./...
@@ -46,17 +53,16 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: "stable"
       - name: Install MinGW (for gcc)
-        run: choco install -y mingw
+        run: choco install -y mingw --version=16.1.0
       - name: Build
         run: |
           go version
-          go get ./...
           $env:CGO_ENABLED=1; go build -race -v ./...
       - name: Test
         run: |
@@ -84,9 +90,9 @@ jobs:
           - goos: aix
             goarch: ppc64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: "stable"
       - name: Cross-compile (${{ matrix.goos }}/${{ matrix.goarch }})
@@ -97,3 +103,17 @@ jobs:
           go version
           go build -v ./...
           go vet ./...
+
+  # Flag known-vulnerable dependencies (e.g. golang.org/x/sys) automatically.
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: "stable"
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./...
