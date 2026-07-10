@@ -54,7 +54,7 @@ func TestProtect(t *testing.T) {
 	if err := Protect(buffer, NoAccess()); err != nil {
 		t.Error(err)
 	}
-	if err := Protect(buffer, MemoryProtectionFlag{4}); err == nil || err.Error() != ErrInvalidFlag {
+	if err := Protect(buffer, MemoryProtectionFlag{flag: 4}); err == nil || err.Error() != ErrInvalidFlag {
 		t.Error("expected error")
 	}
 	if err := Free(buffer); err != nil {
@@ -79,8 +79,8 @@ func TestFreeEmpty(t *testing.T) {
 		name string
 		buf  []byte
 	}{
-		{"nil", nil},
-		{"empty", []byte{}},
+		{name: "nil", buf: nil},
+		{name: "empty", buf: []byte{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			defer func() {

@@ -35,17 +35,17 @@ type MemoryProtectionFlag struct {
 
 // NoAccess specifies that the memory should be marked unreadable and immutable.
 func NoAccess() MemoryProtectionFlag {
-	return MemoryProtectionFlag{1}
+	return MemoryProtectionFlag{flag: 1}
 }
 
 // ReadOnly specifies that the memory should be marked read-only (immutable).
 func ReadOnly() MemoryProtectionFlag {
-	return MemoryProtectionFlag{2}
+	return MemoryProtectionFlag{flag: 2}
 }
 
 // ReadWrite specifies that the memory should be made readable and writable.
 func ReadWrite() MemoryProtectionFlag {
-	return MemoryProtectionFlag{6}
+	return MemoryProtectionFlag{flag: 6}
 }
 
 // ErrInvalidFlag indicates that a given memory protection flag is undefined.

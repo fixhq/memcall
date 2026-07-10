@@ -58,10 +58,12 @@ func Alloc(n int) ([]byte, error) {
 
 // Free deallocates the byte slice specified.
 func Free(b []byte) error {
-	// Make the memory region readable and writable.
-	if err := Protect(b, ReadWrite()); err != nil {
-		return err
-	}
+	// Best-effort restore to read/write so the wipe below can proceed. If this
+	// fails we still wipe, unlock, and free rather than leave the secret sitting
+	// in mapped memory: a restore failure on an Alloc-returned buffer indicates
+	// caller misuse, where the pages are normally still writable. The failure is
+	// surfaced once the cleanup has run.
+	protectErr := Protect(b, ReadWrite())
 
 	// Wipe the memory region while it is still locked, closing the window in
 	// which a secret could be paged out to the pagefile between the unlock and
@@ -77,7 +79,8 @@ func Free(b []byte) error {
 		return fmt.Errorf("<memcall> could not deallocate %s [Err: %s]", _addr(b), err)
 	}
 
-	return nil
+	// Surface the earlier restore failure, if any, now that cleanup has run.
+	return protectErr
 }
 
 // Protect modifies the memory protection flags for a specified byte slice.
