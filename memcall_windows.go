@@ -11,6 +11,11 @@ import (
 )
 
 // Lock is a wrapper for windows.VirtualLock()
+//
+// b must be page-aligned and occupy its own dedicated pages — pass only buffers
+// returned by Alloc. These calls act at page granularity, so a sub-slice or a
+// heap-backed slice can disturb unrelated data sharing the same pages; see the
+// package documentation.
 func Lock(b []byte) error {
 	if err := windows.VirtualLock(uintptr(_getStartPtr(b)), uintptr(len(b))); err != nil {
 		return fmt.Errorf("<memcall> could not acquire lock on %s, limit reached? [Err: %s]", _addr(b), err)
@@ -20,6 +25,11 @@ func Lock(b []byte) error {
 }
 
 // Unlock is a wrapper for windows.VirtualUnlock()
+//
+// b must be page-aligned and occupy its own dedicated pages — pass only buffers
+// returned by Alloc. Unlock acts at page granularity, so unlocking a buffer that
+// shares a page with another locked secret can silently make that secret
+// swappable; see the package documentation.
 func Unlock(b []byte) error {
 	if err := windows.VirtualUnlock(uintptr(_getStartPtr(b)), uintptr(len(b))); err != nil {
 		return fmt.Errorf("<memcall> could not free lock on %s [Err: %s]", _addr(b), err)
@@ -71,6 +81,11 @@ func Free(b []byte) error {
 }
 
 // Protect modifies the memory protection flags for a specified byte slice.
+//
+// b must be page-aligned and occupy its own dedicated pages — pass only buffers
+// returned by Alloc. Protect acts at page granularity, so changing protection on
+// a sub-slice or heap-backed slice also reprotects unrelated data sharing the
+// same pages; see the package documentation.
 func Protect(b []byte, mpf MemoryProtectionFlag) error {
 	var prot uint32
 	if mpf.flag == ReadWrite().flag {

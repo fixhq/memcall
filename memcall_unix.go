@@ -10,6 +10,11 @@ import (
 )
 
 // Lock is a wrapper for mlock(2), with extra precautions.
+//
+// b must be page-aligned and occupy its own dedicated pages — pass only buffers
+// returned by Alloc. These calls act at page granularity, so a sub-slice or a
+// heap-backed slice can disturb unrelated data sharing the same pages; see the
+// package documentation.
 func Lock(b []byte) error {
 	// Advise the kernel to exclude this mapping from core dumps. Surface a
 	// failure rather than swallowing it, so a caller is never misled into
@@ -27,6 +32,11 @@ func Lock(b []byte) error {
 }
 
 // Unlock is a wrapper for munlock(2).
+//
+// b must be page-aligned and occupy its own dedicated pages — pass only buffers
+// returned by Alloc. Unlock acts at page granularity, so unlocking a buffer that
+// shares a page with another locked secret can silently make that secret
+// swappable; see the package documentation.
 func Unlock(b []byte) error {
 	if err := unix.Munlock(b); err != nil {
 		return fmt.Errorf("<memcall> could not free lock on %s [Err: %s]", _addr(b), err)
@@ -85,6 +95,11 @@ func Free(b []byte) error {
 }
 
 // Protect modifies the protection state for a specified byte slice.
+//
+// b must be page-aligned and occupy its own dedicated pages — pass only buffers
+// returned by Alloc. Protect acts at page granularity, so changing protection on
+// a sub-slice or heap-backed slice also reprotects unrelated data sharing the
+// same pages; see the package documentation.
 func Protect(b []byte, mpf MemoryProtectionFlag) error {
 	var prot int
 	if mpf.flag == ReadWrite().flag {
