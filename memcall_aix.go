@@ -16,6 +16,10 @@ import (
 // heap-backed slice can disturb unrelated data sharing the same pages; see the
 // package documentation.
 func Lock(b []byte) error {
+	if err := _checkAligned(b); err != nil {
+		return err
+	}
+
 	if err := unix.Mlock(b); err != nil {
 		if errors.Is(err, unix.EPERM) {
 			// per mlock(2): The calling process must have the root user authority to use this subroutine.
@@ -35,6 +39,10 @@ func Lock(b []byte) error {
 // shares a page with another locked secret can silently make that secret
 // swappable; see the package documentation.
 func Unlock(b []byte) error {
+	if err := _checkAligned(b); err != nil {
+		return err
+	}
+
 	if err := unix.Munlock(b); err != nil {
 		if errors.Is(err, unix.EPERM) {
 			// per munlock(2): The calling process must have the root user authority to use this subroutine.
@@ -95,6 +103,10 @@ func Free(b []byte) error {
 // a sub-slice or heap-backed slice also reprotects unrelated data sharing the
 // same pages; see the package documentation.
 func Protect(b []byte, mpf MemoryProtectionFlag) error {
+	if err := _checkAligned(b); err != nil {
+		return err
+	}
+
 	var prot int
 	if mpf.flag == ReadWrite().flag {
 		prot = unix.PROT_READ | unix.PROT_WRITE

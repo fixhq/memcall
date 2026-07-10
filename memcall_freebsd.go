@@ -16,6 +16,10 @@ import (
 // heap-backed slice can disturb unrelated data sharing the same pages; see the
 // package documentation.
 func Lock(b []byte) error {
+	if err := _checkAligned(b); err != nil {
+		return err
+	}
+
 	// Advise the kernel to exclude this mapping from core dumps. Surface a
 	// failure rather than swallowing it, so a caller is never misled into
 	// believing dump-exclusion is in effect when it is not.
@@ -38,6 +42,10 @@ func Lock(b []byte) error {
 // shares a page with another locked secret can silently make that secret
 // swappable; see the package documentation.
 func Unlock(b []byte) error {
+	if err := _checkAligned(b); err != nil {
+		return err
+	}
+
 	if err := unix.Munlock(b); err != nil {
 		return fmt.Errorf("<memcall> could not free lock on %s [Err: %s]", _addr(b), err)
 	}
@@ -93,6 +101,10 @@ func Free(b []byte) error {
 // a sub-slice or heap-backed slice also reprotects unrelated data sharing the
 // same pages; see the package documentation.
 func Protect(b []byte, mpf MemoryProtectionFlag) error {
+	if err := _checkAligned(b); err != nil {
+		return err
+	}
+
 	var prot int
 	if mpf.flag == ReadWrite().flag {
 		prot = unix.PROT_READ | unix.PROT_WRITE

@@ -5,6 +5,8 @@ package memcall
 import (
 	"errors"
 	"fmt"
+	"os"
+	"runtime"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -17,6 +19,10 @@ import (
 // heap-backed slice can disturb unrelated data sharing the same pages; see the
 // package documentation.
 func Lock(b []byte) error {
+	if err := _checkAligned(b); err != nil {
+		return err
+	}
+
 	if err := windows.VirtualLock(uintptr(_getStartPtr(b)), uintptr(len(b))); err != nil {
 		return fmt.Errorf("<memcall> could not acquire lock on %s, limit reached? [Err: %s]", _addr(b), err)
 	}
@@ -31,6 +37,10 @@ func Lock(b []byte) error {
 // shares a page with another locked secret can silently make that secret
 // swappable; see the package documentation.
 func Unlock(b []byte) error {
+	if err := _checkAligned(b); err != nil {
+		return err
+	}
+
 	if err := windows.VirtualUnlock(uintptr(_getStartPtr(b)), uintptr(len(b))); err != nil {
 		return fmt.Errorf("<memcall> could not free lock on %s [Err: %s]", _addr(b), err)
 	}
@@ -90,6 +100,10 @@ func Free(b []byte) error {
 // a sub-slice or heap-backed slice also reprotects unrelated data sharing the
 // same pages; see the package documentation.
 func Protect(b []byte, mpf MemoryProtectionFlag) error {
+	if err := _checkAligned(b); err != nil {
+		return err
+	}
+
 	var prot uint32
 	if mpf.flag == ReadWrite().flag {
 		prot = windows.PAGE_READWRITE
@@ -109,17 +123,41 @@ func Protect(b []byte, mpf MemoryProtectionFlag) error {
 	return nil
 }
 
-// DisableCoreDumps is a no-op on Windows and always returns nil.
+var (
+	modwer                        = windows.NewLazySystemDLL("wer.dll")
+	procWerAddExcludedApplication = modwer.NewProc("WerAddExcludedApplication")
+)
+
+// DisableCoreDumps excludes the current executable from Windows Error Reporting
+// so that a crash does not generate a WER report or dump for it. It calls
+// WerAddExcludedApplication for the current user (which does not require
+// administrator rights) and returns an error if the exclusion cannot be
+// registered.
 //
-// Windows has no process-wide equivalent of RLIMIT_CORE, and memcall cannot
-// exclude individual mappings from crash dumps on this platform. In particular,
-// Windows Error Reporting (WER) LocalDumps can still write full-memory
-// minidumps of a crashing process — including locked, secret-holding buffers —
-// to the configured dump directory, and VirtualLock does not exclude pages from
-// those dumps.
-//
-// Suppressing full-memory crash dumps on Windows must therefore be handled
-// outside this library, by system policy (for example, disabling or scoping WER
-// LocalDumps). Do not treat the nil return here as evidence that dump
-// protection is in effect.
-func DisableCoreDumps() error { return nil }
+// This is best-effort hardening, not a complete guarantee. Windows has no
+// process-wide equivalent of RLIMIT_CORE, and the exclusion does not stop WER
+// LocalDumps configured under HKLM by system policy, which can still write
+// full-memory minidumps — including locked, secret-holding buffers. Suppressing
+// those remains a system-policy concern outside this library.
+func DisableCoreDumps() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("<memcall> could not determine executable path [Err: %s]", err)
+	}
+
+	exe16, err := windows.UTF16PtrFromString(exe)
+	if err != nil {
+		return fmt.Errorf("<memcall> could not encode executable path [Err: %s]", err)
+	}
+
+	// bAllUsers = 0 registers the exclusion for the current user only, so no
+	// administrator privileges are needed. The call returns an HRESULT; a
+	// negative value indicates failure.
+	r, _, _ := procWerAddExcludedApplication.Call(uintptr(unsafe.Pointer(exe16)), 0)
+	runtime.KeepAlive(exe16)
+	if int32(r) < 0 {
+		return fmt.Errorf("<memcall> could not exclude process from Windows Error Reporting [HRESULT: 0x%08x]", uint32(r))
+	}
+
+	return nil
+}
