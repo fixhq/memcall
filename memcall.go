@@ -3,8 +3,10 @@
 //
 // To keep sensitive data out of core dumps, callers should both Lock each
 // buffer and call DisableCoreDumps. Per-mapping dump exclusion is not available
-// on every platform (notably macOS, NetBSD, Solaris, and AIX), so Lock alone is
-// not sufficient everywhere. See the README for the per-platform details.
+// on every platform (notably macOS, NetBSD, Solaris, AIX, and Windows), so Lock
+// alone is not sufficient everywhere. On Windows, DisableCoreDumps is a no-op
+// and full-memory crash dumps must be governed by system policy. See the README
+// for the per-platform details.
 package memcall
 
 import (

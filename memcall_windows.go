@@ -91,5 +91,17 @@ func Protect(b []byte, mpf MemoryProtectionFlag) error {
 	return nil
 }
 
-// DisableCoreDumps is included for compatibility reasons. On windows it is a no-op function.
+// DisableCoreDumps is a no-op on Windows and always returns nil.
+//
+// Windows has no process-wide equivalent of RLIMIT_CORE, and memcall cannot
+// exclude individual mappings from crash dumps on this platform. In particular,
+// Windows Error Reporting (WER) LocalDumps can still write full-memory
+// minidumps of a crashing process — including locked, secret-holding buffers —
+// to the configured dump directory, and VirtualLock does not exclude pages from
+// those dumps.
+//
+// Suppressing full-memory crash dumps on Windows must therefore be handled
+// outside this library, by system policy (for example, disabling or scoping WER
+// LocalDumps). Do not treat the nil return here as evidence that dump
+// protection is in effect.
 func DisableCoreDumps() error { return nil }
