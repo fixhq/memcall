@@ -13,7 +13,7 @@ import (
 // Lock is a wrapper for windows.VirtualLock()
 func Lock(b []byte) error {
 	if err := windows.VirtualLock(uintptr(_getStartPtr(b)), uintptr(len(b))); err != nil {
-		return fmt.Errorf("<memcall> could not acquire lock on %p, limit reached? [Err: %s]", _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not acquire lock on %s, limit reached? [Err: %s]", _addr(b), err)
 	}
 
 	return nil
@@ -22,7 +22,7 @@ func Lock(b []byte) error {
 // Unlock is a wrapper for windows.VirtualUnlock()
 func Unlock(b []byte) error {
 	if err := windows.VirtualUnlock(uintptr(_getStartPtr(b)), uintptr(len(b))); err != nil {
-		return fmt.Errorf("<memcall> could not free lock on %p [Err: %s]", _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not free lock on %s [Err: %s]", _addr(b), err)
 	}
 
 	return nil
@@ -61,7 +61,7 @@ func Free(b []byte) error {
 
 	// Free the memory back to the kernel.
 	if err := windows.VirtualFree(uintptr(_getStartPtr(b)), uintptr(0), windows.MEM_RELEASE); err != nil {
-		return fmt.Errorf("<memcall> could not deallocate %p [Err: %s]", _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not deallocate %s [Err: %s]", _addr(b), err)
 	}
 
 	return nil
@@ -82,7 +82,7 @@ func Protect(b []byte, mpf MemoryProtectionFlag) error {
 
 	var oldProtect uint32
 	if err := windows.VirtualProtect(uintptr(_getStartPtr(b)), uintptr(len(b)), prot, &oldProtect); err != nil {
-		return fmt.Errorf("<memcall> could not set %d on %p [Err: %s]", prot, _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not set %d on %s [Err: %s]", prot, _addr(b), err)
 	}
 
 	return nil

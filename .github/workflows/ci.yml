@@ -71,8 +71,7 @@ jobs:
         run: go test -run=XXX -bench=. ./...
 
   # Cross-compile the platform implementations that have no native CI runner,
-  # so a build break on a BSD/Solaris/AIX target is caught
-  # DragonFly is intentionally excluded for now.
+  # so a build break on a BSD/Solaris/AIX target is caught.
   cross-compile:
     runs-on: ubuntu-latest
     strategy:
@@ -80,6 +79,8 @@ jobs:
       matrix:
         include:
           - goos: freebsd
+            goarch: amd64
+          - goos: dragonfly
             goarch: amd64
           - goos: netbsd
             goarch: amd64

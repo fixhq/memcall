@@ -1,4 +1,4 @@
-//go:build !windows && !darwin && !openbsd && !freebsd && !aix && !netbsd && !solaris
+//go:build !windows && !darwin && !openbsd && !freebsd && !aix && !netbsd && !solaris && !dragonfly
 
 package memcall
 
@@ -11,12 +11,16 @@ import (
 
 // Lock is a wrapper for mlock(2), with extra precautions.
 func Lock(b []byte) error {
-	// Advise the kernel not to dump. Ignore failure.
-	unix.Madvise(b, unix.MADV_DONTDUMP)
+	// Advise the kernel to exclude this mapping from core dumps. Surface a
+	// failure rather than swallowing it, so a caller is never misled into
+	// believing dump-exclusion is in effect when it is not.
+	if err := unix.Madvise(b, unix.MADV_DONTDUMP); err != nil {
+		return fmt.Errorf("<memcall> could not exclude %s from core dumps [Err: %s]", _addr(b), err)
+	}
 
 	// Call mlock.
 	if err := unix.Mlock(b); err != nil {
-		return fmt.Errorf("<memcall> could not acquire lock on %p, limit reached? [Err: %s]", _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not acquire lock on %s, limit reached? [Err: %s]", _addr(b), err)
 	}
 
 	return nil
@@ -25,7 +29,7 @@ func Lock(b []byte) error {
 // Unlock is a wrapper for munlock(2).
 func Unlock(b []byte) error {
 	if err := unix.Munlock(b); err != nil {
-		return fmt.Errorf("<memcall> could not free lock on %p [Err: %s]", _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not free lock on %s [Err: %s]", _addr(b), err)
 	}
 
 	return nil
@@ -61,7 +65,7 @@ func Free(b []byte) error {
 
 	// Free the memory back to the kernel.
 	if err := unix.Munmap(b); err != nil {
-		return fmt.Errorf("<memcall> could not deallocate %p [Err: %s]", _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not deallocate %s [Err: %s]", _addr(b), err)
 	}
 
 	return nil
@@ -82,7 +86,7 @@ func Protect(b []byte, mpf MemoryProtectionFlag) error {
 
 	// Change the protection value of the byte slice.
 	if err := unix.Mprotect(b, prot); err != nil {
-		return fmt.Errorf("<memcall> could not set %d on %p [Err: %s]", prot, _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not set %d on %s [Err: %s]", prot, _addr(b), err)
 	}
 
 	return nil

@@ -1,4 +1,4 @@
-//go:build netbsd
+//go:build dragonfly
 
 package memcall
 
@@ -9,8 +9,15 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Lock is a wrapper for mlock(2), with extra precautions.
+// Lock is a wrapper for unix.Mlock(), with extra precautions.
 func Lock(b []byte) error {
+	// Advise the kernel to exclude this mapping from core dumps. Surface a
+	// failure rather than swallowing it, so a caller is never misled into
+	// believing dump-exclusion is in effect when it is not.
+	if err := unix.Madvise(b, unix.MADV_NOCORE); err != nil {
+		return fmt.Errorf("<memcall> could not exclude %s from core dumps [Err: %s]", _addr(b), err)
+	}
+
 	// Call mlock.
 	if err := unix.Mlock(b); err != nil {
 		return fmt.Errorf("<memcall> could not acquire lock on %s, limit reached? [Err: %s]", _addr(b), err)
@@ -19,7 +26,7 @@ func Lock(b []byte) error {
 	return nil
 }
 
-// Unlock is a wrapper for munlock(2).
+// Unlock is a wrapper for unix.Munlock().
 func Unlock(b []byte) error {
 	if err := unix.Munlock(b); err != nil {
 		return fmt.Errorf("<memcall> could not free lock on %s [Err: %s]", _addr(b), err)
@@ -31,7 +38,7 @@ func Unlock(b []byte) error {
 // Alloc allocates a byte slice of length n and returns it.
 func Alloc(n int) ([]byte, error) {
 	// Allocate the memory.
-	b, err := unix.Mmap(-1, 0, n, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_PRIVATE|unix.MAP_ANON)
+	b, err := unix.Mmap(-1, 0, n, unix.PROT_READ|unix.PROT_WRITE, unix.MAP_PRIVATE|unix.MAP_ANONYMOUS|unix.MAP_NOCORE)
 	if err != nil {
 		return nil, fmt.Errorf("<memcall> could not allocate [Err: %s]", err)
 	}

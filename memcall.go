@@ -1,6 +1,15 @@
+// Package memcall provides a cross-platform wrapper over some common
+// memory-related system calls.
+//
+// To keep sensitive data out of core dumps, callers should both Lock each
+// buffer and call DisableCoreDumps. Per-mapping dump exclusion is not available
+// on every platform (notably macOS, NetBSD, Solaris, and AIX), and on Linux it
+// is only applied by Lock, so Lock alone is not sufficient everywhere. See the
+// README for the per-platform details.
 package memcall
 
 import (
+	"runtime"
 	"unsafe"
 )
 
@@ -39,6 +48,9 @@ var wipe = func(buf []byte) {
 	for i := range buf {
 		buf[i] = 0
 	}
+	// Keep the buffer alive past the zeroing loop so a future compiler cannot
+	// prove the stores dead and eliminate them.
+	runtime.KeepAlive(buf)
 }
 
 // Placeholder variable for when we need a valid pointer to zero bytes.

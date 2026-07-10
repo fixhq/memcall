@@ -14,9 +14,9 @@ func Lock(b []byte) error {
 	if err := unix.Mlock(b); err != nil {
 		if errors.Is(err, unix.EPERM) {
 			// per mlock(2): The calling process must have the root user authority to use this subroutine.
-			return fmt.Errorf("<memcall> could not acquire lock on %p, do you have PV_ROOT? [Err: %s]", _getStartPtr(b), err)
+			return fmt.Errorf("<memcall> could not acquire lock on %s, do you have PV_ROOT? [Err: %s]", _addr(b), err)
 		} else {
-			return fmt.Errorf("<memcall> could not acquire lock on %p, limit reached? [Err: %s]", _getStartPtr(b), err)
+			return fmt.Errorf("<memcall> could not acquire lock on %s, limit reached? [Err: %s]", _addr(b), err)
 		}
 	}
 
@@ -28,9 +28,9 @@ func Unlock(b []byte) error {
 	if err := unix.Munlock(b); err != nil {
 		if errors.Is(err, unix.EPERM) {
 			// per munlock(2): The calling process must have the root user authority to use this subroutine.
-			return fmt.Errorf("<memcall> could not free lock on %p, do you have PV_ROOT? [Err: %s]", _getStartPtr(b), err)
+			return fmt.Errorf("<memcall> could not free lock on %s, do you have PV_ROOT? [Err: %s]", _addr(b), err)
 		} else {
-			return fmt.Errorf("<memcall> could not free lock on %p [Err: %s]", _getStartPtr(b), err)
+			return fmt.Errorf("<memcall> could not free lock on %s [Err: %s]", _addr(b), err)
 		}
 	}
 
@@ -67,7 +67,7 @@ func Free(b []byte) error {
 
 	// Free the memory back to the kernel.
 	if err := unix.Munmap(b); err != nil {
-		return fmt.Errorf("<memcall> could not deallocate %p [Err: %s]", _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not deallocate %s [Err: %s]", _addr(b), err)
 	}
 
 	return nil
@@ -88,7 +88,7 @@ func Protect(b []byte, mpf MemoryProtectionFlag) error {
 
 	// Change the protection value of the byte slice.
 	if err := unix.Mprotect(b, prot); err != nil {
-		return fmt.Errorf("<memcall> could not set %d on %p [Err: %s]", prot, _getStartPtr(b), err)
+		return fmt.Errorf("<memcall> could not set %d on %s [Err: %s]", prot, _addr(b), err)
 	}
 
 	return nil
