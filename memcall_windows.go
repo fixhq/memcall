@@ -53,11 +53,14 @@ func Free(b []byte) error {
 		return err
 	}
 
-	// Unlock the memory to release lock accounting.
-	_ = Unlock(b)
-
-	// Wipe the memory region in case of remnant data.
+	// Wipe the memory region while it is still locked, closing the window in
+	// which a secret could be paged out to the pagefile between the unlock and
+	// the wipe.
 	wipe(b)
+
+	// Unlock the memory to release lock accounting. Ignore the error: the
+	// buffer may never have been locked, and VirtualFree releases the lock.
+	_ = Unlock(b)
 
 	// Free the memory back to the kernel.
 	if err := windows.VirtualFree(uintptr(_getStartPtr(b)), uintptr(0), windows.MEM_RELEASE); err != nil {

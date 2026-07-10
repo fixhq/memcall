@@ -50,11 +50,13 @@ func Free(b []byte) error {
 		return err
 	}
 
-	// Unlock the memory to release mlock accounting.
-	_ = Unlock(b)
-
-	// Wipe the memory region in case of remnant data.
+	// Wipe the memory region while it is still locked, closing the window in
+	// which a secret could be paged out to swap between the unlock and the wipe.
 	wipe(b)
+
+	// Unlock the memory to release mlock accounting. Ignore the error: the
+	// buffer may never have been locked, and munmap releases the lock anyway.
+	_ = Unlock(b)
 
 	// Free the memory back to the kernel.
 	if err := unix.Munmap(b); err != nil {
