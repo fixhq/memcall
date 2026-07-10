@@ -43,6 +43,17 @@ func Alloc(n int) ([]byte, error) {
 		return nil, fmt.Errorf("<memcall> could not allocate [Err: %s]", err)
 	}
 
+	// Exclude the mapping from core dumps at allocation time. Linux mmap has no
+	// equivalent flag (unlike MAP_NOCORE/MAP_CONCEAL on the BSDs), so without
+	// this a crash before the caller reaches Lock — or a caller that never Locks
+	// because mlock limits were exhausted — would leak the buffer into a core
+	// file. Lock advises this again as belt-and-braces. Fail loudly rather than
+	// hand back a dumpable buffer.
+	if err := unix.Madvise(b, unix.MADV_DONTDUMP); err != nil {
+		_ = unix.Munmap(b)
+		return nil, fmt.Errorf("<memcall> could not exclude %s from core dumps [Err: %s]", _addr(b), err)
+	}
+
 	// Wipe it just in case there is some remnant data.
 	wipe(b)
 
