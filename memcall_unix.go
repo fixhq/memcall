@@ -64,6 +64,17 @@ func Alloc(n int) ([]byte, error) {
 		return nil, fmt.Errorf("<memcall> could not exclude %s from core dumps [Err: %s]", _addr(b), err)
 	}
 
+	// Present forked children with zero-filled pages for this mapping, so a cgo
+	// fork() or exec cannot carry a copy of the secret: child copies are not
+	// mlocked, and MADV_DONTDUMP is inherited but does not zero. This needs Linux
+	// 4.14+; because the mapping is private and anonymous, an EINVAL here means
+	// only that the kernel predates MADV_WIPEONFORK, which we tolerate. Any other
+	// failure is surfaced rather than silently degrading.
+	if err := unix.Madvise(b, unix.MADV_WIPEONFORK); err != nil && !errors.Is(err, unix.EINVAL) {
+		_ = unix.Munmap(b)
+		return nil, fmt.Errorf("<memcall> could not set wipe-on-fork on %s [Err: %s]", _addr(b), err)
+	}
+
 	// Wipe it just in case there is some remnant data.
 	wipe(b)
 
