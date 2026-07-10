@@ -68,7 +68,25 @@ jobs:
         with:
           go-version: "stable"
       - name: Install MinGW (for gcc)
-        run: choco install -y mingw --version=16.1.0
+        # Pin the CGO toolchain by content hash instead of trusting the
+        # Chocolatey feed by version. GCC 16.1.0 (winlibs, UCRT runtime); the
+        # SHA-256 is the winlibs GitHub release asset digest, re-verified on
+        # every run, so swapped bytes fail the job rather than silently running
+        # an unexpected toolchain. To bump: update url and sha256 together from
+        # the release asset's "digest" field.
+        #
+        # Previous approach (pinned by version only, not content hash):
+        #   choco install -y mingw --version=16.1.0
+        shell: pwsh
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          $url = 'https://github.com/brechtsanders/winlibs_mingw/releases/download/16.1.0posix-14.0.0-ucrt-r3/winlibs-x86_64-posix-seh-gcc-16.1.0-mingw-w64ucrt-14.0.0-r3.zip'
+          $sha = '4273565109cd8ab8ecef1b0dc2a56fd7f5c7ee0885840a1c011b9325160ec0c3'
+          Invoke-WebRequest -Uri $url -OutFile mingw.zip
+          $got = (Get-FileHash mingw.zip -Algorithm SHA256).Hash.ToLower()
+          if ($got -ne $sha) { throw "MinGW checksum mismatch: expected $sha, got $got" }
+          Expand-Archive -Path mingw.zip -DestinationPath C:\mingw-toolchain -Force
+          Add-Content -Path $env:GITHUB_PATH -Value 'C:\mingw-toolchain\mingw64\bin'
       - name: Build
         run: |
           go version
